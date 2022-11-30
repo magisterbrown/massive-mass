@@ -12,14 +12,18 @@ exceptions = [
         '@ file',
     ]
 
-exceptions.extend(installed_names)
-
 with open('requirements.txt', 'r') as f:
     deps = f.readlines()
+    
+    #Remove already installed
+    for insn in installed_names:
+        deps = list(filter(lambda x:insn != re.match('\w+',x).group(), deps))
 
     #Remove packages that have patterns from the exceptios
     for exc in exceptions:
         deps = list(filter(lambda x:not (exc in x), deps))
+
+    print(deps)
 
 setup(name='biopack',
       version='1.0',
