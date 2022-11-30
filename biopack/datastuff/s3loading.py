@@ -15,8 +15,18 @@ class WiredAssStream:
 
     def process_bytes(self, bt: bytearray):
         return bt
+class WiredAssStreamOut(WiredAssStream):
+    def process_bytes(self, bt: bytearray):
+        bt.append(0)
+        bt.append(0)
+        return bt
 
 def get_ds_s1_list(links: list):
     was = WiredAssStream()
+    dp = IterableWrapper(links).open_files_by_fsspec(mode="rb", anon=True).map(was)
+    return dp
+
+def get_ds_s1_lab_list(links: list):
+    was = WiredAssStreamOut()
     dp = IterableWrapper(links).open_files_by_fsspec(mode="rb", anon=True).map(was)
     return dp
