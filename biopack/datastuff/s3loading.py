@@ -15,6 +15,7 @@ class WiredAssStream:
 
     def process_bytes(self, bt: bytearray):
         return bt
+
 class WiredAssStreamOut(WiredAssStream):
     def process_bytes(self, bt: bytearray):
         bt.append(0)

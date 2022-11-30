@@ -18,10 +18,15 @@ def get_out_stats():
         from commands.get_stats import GetOutStats as comandor
         return comandor
 
+def get_out_dist():
+        from commands.get_stats import GetDistribution as comandor
+        return comandor
+
 if __name__=='__main__':
     boss = Boss()
     boss.add_command('get_stats', get_stats)
     boss.add_command('get_out_stats', get_out_stats)
+    boss.add_command('get_out_dist', get_out_dist)
     
     
     try:
