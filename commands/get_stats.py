@@ -4,27 +4,42 @@ import numpy as np
 import numpy.ma as ma
 from biopack.datastuff.s3loading import get_ds_s1_list, get_ds_s1_lab_list
 from tqdm import tqdm
+from multiprocessing import Pool
+import itertools
+
 
     
 class GetStatsBase(BaseCommand):
     def __init__(self, inputs):
         self.add_arg('p','path','input path to files', path=True)
         self.add_arg('o','out','output filename')
+        self.add_arg('c','coc','concurrent processes')
         super().__init__(inputs)
+        self.cores = int(self.args.coc)
         
     def submit(self):
-        ds = self.get_links_ds(self.s3links)
+        links_p = np.array_split(self.s3links, self.cores)
+        with Pool(self.cores) as p:
+            proc_res = p.map(self.paral, links_p)
+        
+        alldfs = list(itertools.chain.from_iterable(proc_res)) 
+
+        res = pd.concat(alldfs,ignore_index=True)
+        res.to_csv(f'{self.data}{self.args.out}')
+
+    def paral(self, links:list):
+        ds = self.get_links_ds(links)
         alldfs = list()
-        for bc in tqdm(ds):
+        for bc in ds:
+            print('proc')
             names, arl= list(zip(*bc))
             packed = np.stack(arl)
             bp = batch_process(packed)
             bp['names'] = names
             alldfs.append(pd.DataFrame(bp))
-            break
 
-        res = pd.concat(alldfs,ignore_index=True)
-        res.to_csv(f'{self.data}{self.args.out}')
+        return alldfs
+
 
     def get_links_ds(self, links: list):
         return get_ds_s1_list(links).batch(self.bs)
@@ -46,8 +61,8 @@ class GetOutStats(GetStatsBase):
         super().__init__(inputs)
 
         self.data = self.args.path
-        features = pd.read_csv(f'{self.data}train_agbm_metadata.csv')
-        self.bs = 5
+        features =pd.read_csv(f'{self.data}train_agbm_metadata.csv')
+        self.bs = 3
         self.s3links = features['s3path_eu'].values
 
     def get_links_ds(self, links: list):
