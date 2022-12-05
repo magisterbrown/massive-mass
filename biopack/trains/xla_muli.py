@@ -1,9 +1,11 @@
 import torch
+import torch.nn as nn
 import torch_xla.core.xla_model as xm
 import torch_xla.distributed.xla_multiprocessing as xmp
 import segmentation_models_pytorch as smp
 from biopack.datastuff.train_loader import InputS1Loader, get_zds_from_sus
 from torchdata.datapipes.iter import IterableWrapper 
+from torch.utils.data import DataLoader
 import numpy as np
 
 class XLAMultiTrainer:
@@ -39,8 +41,16 @@ class XLAMultiTrainer:
             self.model = self.model.to(device)
             torch.save(self.model.state_dict(), self.save_pth)
 
-    def train_loop(self):
+    def train_loop(self, epochs=1):
+        self.model.train()
         train_ds = self.get_train_dataset()
+        train_dl = DataLoader(train_ds, batch_size=4)
+        loss_module = nn.MSELoss(reduction='mean')
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.02)
+        for ep in range(epochs):
+            for i, batch in enumerate(train_dl):
+                inputs, lables = batch
+                break
         pass
 
     def get_train_dataset(self):
