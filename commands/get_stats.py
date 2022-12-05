@@ -39,7 +39,7 @@ class GetStatsBase(BaseCommand):
 
 
     def save(self, produced: list):
-        res = pd.concat(alldfs,ignore_index=True)
+        res = pd.concat(produced,ignore_index=True)
         res.to_csv(f'{self.data}{self.args.out}')
 
     def paral(self, links:list, queue):
@@ -82,17 +82,23 @@ class GetStats(GetStatsBase):
 
         self.data = self.args.path
         features = pd.read_csv(f'{self.data}features_metadata.csv')
-        self.bs = 5
+        self.bs = 32
         s1_august = features[np.logical_and(features['satellite']=='S1', features['month']=='August')]
         self.s3links = s1_august['s3path_eu'].values
 
     @staticmethod
     def batch_process(names, batch: np.array):
-        axis = (1,2)
+        batch = np.moveaxis(batch, [1,2,3], [2,3,1])
+
+        axis = (2,3)
         mask = batch<-9998
-        batch = ma.masked_array(batch, mask=mask)
-        cols = { 'mean': np.mean(batch, axis=axis),
-                'misses': np.sum(mask, axis=axis),
+        neg_misses = np.all(batch<-9998, axis=axis)
+        zer_misses = np.all(batch==0, axis=axis)
+        batch[zer_misses] = np.nan
+        batch[neg_misses] = np.nan
+
+        cols = {'mean': np.mean(batch, axis=axis),
+                'misses': np.sum(np.isnan(batch), axis=axis),
                 'mean_of_squares': np.mean(np.square(batch), axis=axis),
                 'max': batch.max(axis=axis),
                 'min': batch.min(axis=axis),
