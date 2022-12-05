@@ -23,6 +23,24 @@ class InputS1Loader(WiredAssStream):
 
         return img
 
+
+def get_link_pairs(features_df, amgb_df, place):
+    allindf = features_df.merge(amgb_df,on='chip_id')
+    allindf = allindf[[f's3path_{place}_x',f's3path_{place}_y']].values
+    return allindf
+
+def get_zds_from_sus(sus, inp_proc):
+    inputs = sus[:,0]
+    lables = sus[:,1]
+
+    input_stream = IterableWrapper(inputs).open_files_by_fsspec(mode="rb", anon=True).map(inp_proc)
+    lab_stream = get_ds_s1_lab_list(lables)
+
+    zipped = NormalZipper(input_stream, lab_stream)
+
+    return zipped
+
+
 def get_simple_train_dl(features_df, amgb_df, place):
     allindf = features_df.merge(amgb_df,on='chip_id')
     allindf = allindf[[f's3path_{place}_x',f's3path_{place}_y']].values
