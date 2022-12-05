@@ -10,6 +10,7 @@ installed_names = map(lambda x:re.match('\w+',x).group(), freeze.freeze())
 
 exceptions = [
         '@ file',
+        'nvidia',
     ]
 
 with open('requirements.txt', 'r') as f:
