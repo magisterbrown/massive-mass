@@ -26,6 +26,7 @@ class XLAMultiTrainer:
                     classes=1,                      # model output channels (number of classes in your dataset)
                                 )
         self.model=xmp.MpModelWrapper(model)
+        print('bef spawn')
         xmp.spawn(self.mp_fn, args=(self.trains,),  nprocs=8, start_method='fork')
         pass
 
@@ -43,22 +44,29 @@ class XLAMultiTrainer:
 
     def train_loop(self, split, epochs=1):
         self.model.train()
+        device = xm.xla_device()
         train_ds = self.get_train_dataset(split)
         train_dl = DataLoader(train_ds, batch_size=3)
         loss_module = nn.MSELoss(reduction='mean')
         optimizer = torch.optim.Adam(self.model.parameters(), lr=0.02)
-        print('before llop')
         for ep in range(epochs):
-            print(f'Rpoch {ep}')
             for i, batch in enumerate(train_dl):
                 inputs, lables = batch
-                print(inputs.shape)
+                inputs = inputs.to(dtype=torch.float32,device=device)
+                lables = lables.to(dtype=torch.float32,device=device)
+
+                optimizer.zero_grad()
+                out = self.model(inputs)
+                print(lables.shape)
+                loss = loss_module(out, lables)
+                print(loss)
+                loss.backward()
+                xm.optimizer_step(optimizer)
                 break
             break
         pass
 
     def get_train_dataset(self, subs):
-        print(subs[0])
         return get_zds_from_sus(subs, self.inp_proc)
 
 

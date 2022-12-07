@@ -32,7 +32,7 @@ class NormalZipper(IterDataPipe):
         if not add_names:
             cleaner = lambda x:x[1]
             source_dp = source_dp.map(cleaner)
-            lab_dp = lab_dp.map(cleaner)
+            lab_dp = lab_dp.map(cleaner).map(lambda x: x[np.newaxis])
             
         self.dp = source_dp
         self.lab_dp = lab_dp
