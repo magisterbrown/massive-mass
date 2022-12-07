@@ -7,6 +7,7 @@ from biopack.datastuff.train_loader import InputS1Loader, get_zds_from_sus
 from torchdata.datapipes.iter import IterableWrapper 
 from torch.utils.data import DataLoader
 import numpy as np
+import time
 
 class XLAMultiTrainer:
     def __init__(self, save_pth, train_sus, test_sus):
@@ -25,25 +26,25 @@ class XLAMultiTrainer:
                     classes=1,                      # model output channels (number of classes in your dataset)
                                 )
         self.model=xmp.MpModelWrapper(model)
-        xmp.spawn(self.mp_fn,  nprocs=8, start_method='fork')
+        xmp.spawn(self.mp_fn, args=(self.trains,),  nprocs=8, start_method='fork')
         pass
 
-    def mp_fn(self, index):
+    def mp_fn(self, index, splits):
         torch.manual_seed(self.flags['seed'])
         print(index)
         xm.rendezvous('init')
         device = xm.xla_device()
         self.model = self.model.to(device)
-        self.train_loop()
+        self.train_loop(splits[xm.get_ordinal()])
         if xm.is_master_ordinal():
             device = torch.device("cpu")
             self.model = self.model.to(device)
             torch.save(self.model.state_dict(), self.save_pth)
 
-    def train_loop(self, epochs=1):
+    def train_loop(self, split, epochs=1):
         self.model.train()
-        train_ds = self.get_train_dataset()
-        train_dl = DataLoader(train_ds, batch_size=4)
+        train_ds = self.get_train_dataset(split)
+        train_dl = DataLoader(train_ds, batch_size=3)
         loss_module = nn.MSELoss(reduction='mean')
         optimizer = torch.optim.Adam(self.model.parameters(), lr=0.02)
         print('before llop')
@@ -56,10 +57,8 @@ class XLAMultiTrainer:
             break
         pass
 
-    def get_train_dataset(self):
-        ordinal = xm.get_ordinal()
-        subs = self.trains[ordinal]
-
+    def get_train_dataset(self, subs):
+        print(subs[0])
         return get_zds_from_sus(subs, self.inp_proc)
 
 

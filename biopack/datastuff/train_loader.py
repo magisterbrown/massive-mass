@@ -11,15 +11,19 @@ class InputS1Loader(WiredAssStream):
 
     def process_layers(self, img: np.array):
         img = np.moveaxis(img, -1, 0)
-
-        for key, channel in enumerate(img):
-            neg_misses = np.all(channel<-9998)
-            zer_misses = np.all(channel==0)
-            misses = np.logical_or(neg_misses, zer_misses)
-            if misses:
-                img[key] = np.random.normal(size=channel.shape)*self.std+self.mean
+        axis=(1,2)
+        neg_misses = np.all(img<-9998, axis=axis)
+        zer_misses = np.all(img==0, axis=axis)
+        misses = np.logical_or(neg_misses, zer_misses)
+        imshape = img.shape[1:]
 
         img=(img-self.mean)/self.std
+
+        for key, miss in enumerate(misses):
+            if miss:
+                rep = np.random.normal(size=imshape)
+                img[key] = rep
+
 
         return img
 
