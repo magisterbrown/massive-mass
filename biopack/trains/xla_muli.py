@@ -30,7 +30,6 @@ class XLAMultiTrainer:
 
     def mp_fn(self, index):
         torch.manual_seed(self.flags['seed'])
-        print(self.flags)
         print(index)
         xm.rendezvous('init')
         device = xm.xla_device()
@@ -47,10 +46,14 @@ class XLAMultiTrainer:
         train_dl = DataLoader(train_ds, batch_size=4)
         loss_module = nn.MSELoss(reduction='mean')
         optimizer = torch.optim.Adam(self.model.parameters(), lr=0.02)
+        print('before llop')
         for ep in range(epochs):
+            print(f'Rpoch {ep}')
             for i, batch in enumerate(train_dl):
                 inputs, lables = batch
+                print(inputs.shape)
                 break
+            break
         pass
 
     def get_train_dataset(self):
