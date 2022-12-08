@@ -28,31 +28,21 @@ class XLAMultiTrainer:
                     classes=1,                      # model output channels (number of classes in your dataset)
                                 )
         self.model=xmp.MpModelWrapper(model)
-        print('bef spawn')
         xmp.spawn(self.mp_fn, args=(self.trains,),  nprocs=8, start_method='fork')
-        #device = torch.device("cpu")
-        #self.model = self.model.to(device)
-        #torch.save(self.model.state_dict(), self.save_pth)
 
     def mp_fn(self, index, splits):
         torch.manual_seed(self.flags['seed'])
         print(index)
         device = xm.xla_device()
         inside_model = self.model.to(device)
-        self.train_loop(inside_model, splits[xm.get_ordinal()])
-        #xm.rendezvous('save')
-        #xm.save(inside_model.state_dict(), self.save_pth)
-        xm.rendezvous('init')
-        print('Train Done')
-        xm.save(inside_model.state_dict(), self.save_pth)
+        #self.train_loop(inside_model, splits[xm.get_ordinal()])
+        xm.rendezvous('done')
 
         #if xm.is_master_ordinal():
-        ##    pass
-        #    device = torch.device("cpu")
+        #    print('Train Done')
+        #    device = torch.device('cpu')
         #    inside_model = inside_model.to(device)
-        #    print('COnverted')
-        #    pass
-            #torch.save(smd.state_dict(), self.save_pth)
+        #    torch.save(inside_model.state_dict(), self.save_pth)
 
     def train_loop(self,inside_model, split, epochs=1):
         inside_model.train()
