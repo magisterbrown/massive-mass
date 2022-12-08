@@ -6,7 +6,7 @@ import numpy as np
 from biopack.copy_env import copy_process
 import time
 from torchdata.datapipes.iter import IterableWrapper
-copy_process(3649)
+copy_process(72)
 
 train = np.load('data/tr_links.npy',allow_pickle=True)
 from biopack.trains.xla_muli import XLAMultiTrainer

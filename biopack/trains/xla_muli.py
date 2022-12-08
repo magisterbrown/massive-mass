@@ -35,8 +35,9 @@ class XLAMultiTrainer:
         print(index)
         device = xm.xla_device()
         inside_model = self.model.to(device)
-        #self.train_loop(inside_model, splits[xm.get_ordinal()])
+        self.train_loop(inside_model, splits[xm.get_ordinal()])
         xm.rendezvous('done')
+        time.sleep(1)
 
         #if xm.is_master_ordinal():
         #    print('Train Done')
