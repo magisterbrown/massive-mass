@@ -32,18 +32,17 @@ class XLAMultiTrainer:
 
     def mp_fn(self, index, splits):
         torch.manual_seed(self.flags['seed'])
-        print(index)
         device = xm.xla_device()
         inside_model = self.model.to(device)
         self.train_loop(inside_model, splits[xm.get_ordinal()])
         xm.rendezvous('done')
         time.sleep(1)
 
-        #if xm.is_master_ordinal():
-        #    print('Train Done')
-        #    device = torch.device('cpu')
-        #    inside_model = inside_model.to(device)
-        #    torch.save(inside_model.state_dict(), self.save_pth)
+        if xm.is_master_ordinal():
+            print('Train Done')
+            device = torch.device('cpu')
+            inside_model = inside_model.to(device)
+            torch.save(inside_model.state_dict(), self.save_pth)
 
     def train_loop(self,inside_model, split, epochs=1):
         inside_model.train()
@@ -61,15 +60,13 @@ class XLAMultiTrainer:
 
                 optimizer.zero_grad()
                 out = inside_model(inputs)
-                print(lables.shape)
                 loss = loss_module(out, lables)
                 loss.backward()
                 xm.optimizer_step(optimizer)
                 xm.mark_step()
-                print('Ns')
-                #if(xm.is_master_ordinal()):
-                #    print(loss)
-                print(f'CT {ct}')
+                if(xm.is_master_ordinal()):
+                    print(f'CT {ct}')
+                    print(loss)
                 if(ct>=4):
                     break
                 ct+=1 
