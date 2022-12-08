@@ -1,4 +1,5 @@
 import torch
+import os
 import torch.nn as nn
 import torch_xla.core.xla_model as xm
 import torch_xla.distributed.xla_multiprocessing as xmp
@@ -21,33 +22,58 @@ class XLAMultiTrainer:
         self.inp_proc = InputS1Loader()
 
     def train(self):
-        model = smp.Unet(
-                    encoder_name="resnet34",        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
-                    encoder_weights=None,     # use `imagenet` pre-trained weights for encoder initialization
-                    in_channels=4,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
-                    classes=1,                      # model output channels (number of classes in your dataset)
-                                )
-        self.model=xmp.MpModelWrapper(model)
         print('bef spawn')
-        xmp.spawn(self.mp_fn, args=(self.trains,),  nprocs=8, start_method='fork')
+        xmp.spawn(self.mp_fn, args=(self.trains,),  nprocs=1, start_method='fork')
         #device = torch.device("cpu")
         #self.model = self.model.to(device)
         #torch.save(self.model.state_dict(), self.save_pth)
 
     def mp_fn(self, index, splits):
         torch.manual_seed(self.flags['seed'])
-        print(index)
+        #model = smp.Unet(
+        #            encoder_name="resnet34",        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
+        #            encoder_weights=None,     # use `imagenet` pre-trained weights for encoder initialization
+        #            in_channels=4,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
+        #            classes=1,                      # model output channels (number of classes in your dataset)
+        #                        )
+        model = nn.Linear(3,4)
+
+        if xm.is_master_ordinal():
+            print(index)
+            print(os.cpu_count())
+        dp = next(model.parameters())
+        old = dp.device
+        print(old)
+        model = model.to(old)
         device = xm.xla_device()
-        inside_model = self.model.to(device)
-        self.train_loop(inside_model, splits[xm.get_ordinal()])
-        #xm.rendezvous('save')
-        #xm.save(inside_model.state_dict(), self.save_pth)
-        xm.rendezvous('init')
-        print('Train Done')
-        xm.save(inside_model.state_dict(), self.save_pth)
+        #if xm.is_master_ordinal():
+        #    print(std['encoder.conv1.weight'][:3])
+        print(device)
+        model = model.to(device)
+        print(model.state_dict())
+        #model = model.to(old)
+        #std = inside_model.state_dict()
+        #if xm.is_master_ordinal():
+        #    cpu = torch.device("cpu")
+        #    inside_model.to(cpu)
+        #    print(std)
+        #self.train_loop(inside_model, splits[xm.get_ordinal()])
+        ##xm.rendezvous('save')
+        ##xm.save(inside_model.state_dict(), self.save_pth)
+        #xm.rendezvous('init')
+        #print('Train Done')
+        #std = inside_model.state_dict()
+        #if xm.is_master_ordinal():
+        #    print(std['encoder.conv1.weight'][:3])
+        #    
+        #xm.rendezvous('end')
+        #time.sleep(1)
+        #xm.save(inside_model.state_dict(), self.save_pth, global_master=True)
 
         #if xm.is_master_ordinal():
-        ##    pass
+        #    from pudb.remote import set_trace
+        #    set_trace(term_size=(80, 24)) 
+        ###    pass
         #    device = torch.device("cpu")
         #    inside_model = inside_model.to(device)
         #    print('COnverted')
@@ -74,7 +100,6 @@ class XLAMultiTrainer:
                 loss = loss_module(out, lables)
                 loss.backward()
                 xm.optimizer_step(optimizer)
-                xm.mark_step()
                 print('Ns')
                 #if(xm.is_master_ordinal()):
                 #    print(loss)
