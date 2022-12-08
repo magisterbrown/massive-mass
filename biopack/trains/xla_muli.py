@@ -1,4 +1,5 @@
 import torch
+import os
 import torch.nn as nn
 import torch_xla.core.xla_model as xm
 import torch_xla.distributed.xla_multiprocessing as xmp
@@ -43,7 +44,6 @@ class XLAMultiTrainer:
             device = torch.device('cpu')
             inside_model = inside_model.to(device)
             torch.save(inside_model.state_dict(), self.save_pth)
-
     def train_loop(self,inside_model, split, epochs=1):
         inside_model.train()
         device = xm.xla_device()
