@@ -37,8 +37,6 @@ class XLAMultiTrainer:
         device = xm.xla_device()
         inside_model = self.model.to(device)
         self.train_loop(inside_model, splits[xm.get_ordinal()], **hyper_params)
-        xm.rendezvous('done')
-        time.sleep(1)
 
         if xm.is_master_ordinal():
             print('Train Done')
@@ -48,7 +46,7 @@ class XLAMultiTrainer:
 
     def train_loop(self,inside_model, 
             split, 
-            epochs=1,
+            epochs=2,
             batch_size=3):
         inside_model.train()
         device = xm.xla_device()
@@ -74,24 +72,32 @@ class XLAMultiTrainer:
                 xm.mark_step()
                 if(xm.is_master_ordinal()):
                     prog.update(inputs.shape[0])
-                if(ct>=4):
+                if(ct>=3):
                     break
                 ct+=1 
             if(xm.is_master_ordinal()):
                 prog.close()
                 print(f'Epoch {ep} finished')
+                self.validation_loop(inside_model)
         pass
     def validation_loop(self, model):
         with torch.no_grad():
             loss_module = nn.MSELoss(reduction='mean')
             device = xm.xla_device()
             model.eval()
-            test_ds = self.get_train_dataset(test_sus)
-            test_dl = DataLoader(test_ds, batch_size=8, drop_last=False)
+            test_ds = self.get_train_dataset(self.test_sus)
+            test_dl = DataLoader(test_ds, batch_size=1, drop_last=False)
+            
             for i, batch in enumerate(test_dl):
                 inputs, lables = batch
+                print(i)
                 inputs = inputs.to(dtype=torch.float32,device=device)
                 lables = lables.to(dtype=torch.float32,device=device)
+
+                out = model(inputs)
+                loss = loss_module(out, lables)
+                print(loss)
+
 
 
             pass
