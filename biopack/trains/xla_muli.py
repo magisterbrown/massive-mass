@@ -14,11 +14,12 @@ import time
 from tqdm import tqdm
 
 class XLAMultiTrainer:
-    def __init__(self, save_pth, train_sus, test_sus):
+    def __init__(self, save_pth, train_sus, test_sus, procs):
         self.save_pth = save_pth
         self.flags = dict()
         self.flags['seed'] = 420
-        self.trains = np.array_split(train_sus, 8)
+        self.procs = procs
+        self.trains = np.array_split(train_sus, procs)
         self.test_sus = test_sus
         self.inp_proc = InputS1Loader()
 
@@ -30,7 +31,7 @@ class XLAMultiTrainer:
                     classes=1,                      # model output channels (number of classes in your dataset)
                                 )
         self.model=xmp.MpModelWrapper(model)
-        xmp.spawn(self.mp_fn, args=(self.trains, hyper_params),  nprocs=8, start_method='fork')
+        xmp.spawn(self.mp_fn, args=(self.trains, hyper_params),  nprocs=self.procs, start_method='fork')
 
     def mp_fn(self, index, splits, hyper_params):
         torch.manual_seed(self.flags['seed'])
@@ -56,6 +57,7 @@ class XLAMultiTrainer:
         optimizer = torch.optim.Adam(inside_model.parameters(), lr=0.02)
         sz=split.shape[0]
         for ep in range(epochs):
+            break
             ct=0
             if xm.is_master_ordinal():
                 prog = tqdm(total=sz)
