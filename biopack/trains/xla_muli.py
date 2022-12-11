@@ -28,6 +28,7 @@ class XLAMultiTrainer:
 
 
     def train(self, hyper_params=dict()):
+        torch.manual_seed(self.flags['seed'])
         model = smp.Unet(
                     encoder_name="resnet34",        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
                     encoder_weights=None,     # use `imagenet` pre-trained weights for encoder initialization
@@ -40,7 +41,6 @@ class XLAMultiTrainer:
     def mp_fn(self, index, hyper_params):
         torch.manual_seed(self.flags['seed'])
         device = xm.xla_device()
-        print(device)
         inside_model = self.model.to(device)
         self.train_loop(inside_model, **hyper_params)
 
@@ -62,6 +62,7 @@ class XLAMultiTrainer:
         sz=self.trains[0].shape[0]
         for ep in range(epochs):
             ct=0
+            inside_model.train()
             if xm.is_master_ordinal():
                 prog = tqdm(total=sz)
             for i, batch in enumerate(train_dl):
@@ -87,41 +88,40 @@ class XLAMultiTrainer:
             self.validation_loop(inside_model)
         pass
     def validation_loop(self, model):
-        loss_module = nn.MSELoss(reduction='mean')
+        loss_module = nn.MSELoss(reduction='none')
         device = xm.xla_device()
         model.eval()
         sz = self.test_sus[0].shape[0]
         test_ds = self.get_train_dataset(self.test_sus)
-        test_dl = DataLoader(test_ds, batch_size=4, drop_last=False)
-        stop = iter([False]*1+[True])
+        test_dl = DataLoader(test_ds, batch_size=5, shuffle=False, drop_last=True)
         ct = 0 
-        summs = 0
+        summs=0
         for i, batch in enumerate(test_dl):
             inputs, lables = batch
-            ct+=inputs.shape[0]
-            print(f'{ct}/{sz}')
             inputs = inputs.to(dtype=torch.float32,device=device)
             lables = lables.to(dtype=torch.float32,device=device)
 
             with torch.no_grad():
                 out = model(inputs)
-                loss = loss_module(out, lables)
+                loss = self.rmse(loss_module(out, lables))
                 summs+=loss.item()
                 ct+=1
-            if next(stop):
-                break
-        print(summs)
+            break
         fins = xm.rendezvous('finval', payload=struct.pack('f',summs/ct))
         if xm.is_master_ordinal():
-            print(fins)
             fins = [struct.unpack('f', x) for x in fins]
-            print(fins)
             res = np.mean(fins)
-            print(res)
+            print(f'Final mse {res}')
 
 
 
         pass
+
+    @staticmethod
+    def rmse(batch):
+        mn = torch.mean(batch, [1,2,3])
+        sq = torch.sqrt(mn)
+        return torch.mean(sq)
 
     def get_train_dataset(self, subs):
         orbit = xm.get_ordinal()
