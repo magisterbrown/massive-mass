@@ -49,25 +49,30 @@ class XLAMultiTrainer:
             device = torch.device('cpu')
             inside_model = inside_model.to(device)
             torch.save(inside_model.state_dict(), self.save_pth)
+        xm.rendezvous('alldone')
+        time.sleep(1)
+
 
     def train_loop(self,inside_model, 
             epochs=1,
             batch_size=3):
         inside_model.train()
         device = xm.xla_device()
-        train_ds = self.get_train_dataset(self.trains)
-        train_dl = DataLoader(train_ds, batch_size=3, drop_last=True)
+        train_ds = self.get_train_dataset(self.trains).prefetch(16)
+        train_dl = DataLoader(train_ds, batch_size=8,shuffle=False, drop_last=True)
         loss_module = nn.MSELoss(reduction='mean')
-        optimizer = torch.optim.Adam(inside_model.parameters(), lr=0.02)
+        optimizer = torch.optim.Adam(inside_model.parameters(), lr=0.001)
         sz=self.trains[0].shape[0]
+        lossed = -1
+        st = time.time()
         for ep in range(epochs):
-            ct=0
             inside_model.train()
             if xm.is_master_ordinal():
                 prog = tqdm(total=sz)
             for i, batch in enumerate(train_dl):
-                break
                 inputs, lables = batch
+                print(f'Loading step {time.time()-st}')
+                st = time.time()
                 inputs = inputs.to(dtype=torch.float32,device=device)
                 lables = lables.to(dtype=torch.float32,device=device)
 
@@ -76,16 +81,18 @@ class XLAMultiTrainer:
                 loss = loss_module(out, lables)
                 loss.backward()
                 xm.optimizer_step(optimizer)
-                xm.mark_step()
+                print(loss.item())
+                print(f'Training step {time.time()-st}')
+                st = time.time()
                 if(xm.is_master_ordinal()):
                     prog.update(inputs.shape[0])
-                if(ct>=3):
-                    break
-                ct+=1 
+                #    lossed = loss.item() if lossed==-1 else lossed*0.9+loss.item()*0.1
+                    #prog.set_description(f'Running loss {loss}')
+                    #prog.refresh()
             if(xm.is_master_ordinal()):
                 prog.close()
                 print(f'Epoch {ep} finished')
-            self.validation_loop(inside_model)
+            #self.validation_loop(inside_model)
         pass
     def validation_loop(self, model):
         loss_module = nn.MSELoss(reduction='none')
