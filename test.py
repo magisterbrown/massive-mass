@@ -1,5 +1,10 @@
 import torch
 import os
+os.environ['XLA_USE_32BIT_LONG'] = '1'
+os.environ['XLA_USE_BF16'] = '1'
+# os.environ['XLA_SAVE_TENSORS_FILE'] = 'tensors.log'
+# os.environ['XLA_SAVE_TENSORS_FMT'] = 'text'
+os.environ['XLA_TRIM_GRAPH_SIZE'] = '1000000'
 #os.environ['XRT_DEVICE_MAP'] ="CPU:0;/job:localservice/replica:0/task:0/device:XLA_CPU:0" 
 #os.environ['XRT_WORKERS'] = "localservice:0;grpc://localhost:40934"
 import torch.nn as nn

@@ -59,7 +59,7 @@ class XLAMultiTrainer:
         inside_model.train()
         device = xm.xla_device()
         train_ds = self.get_train_dataset(self.trains).prefetch(16)
-        train_dl = DataLoader(train_ds, batch_size=8,shuffle=False, drop_last=True)
+        train_dl = DataLoader(train_ds, batch_size=4,shuffle=False, drop_last=True)
         loss_module = nn.MSELoss(reduction='mean')
         optimizer = torch.optim.Adam(inside_model.parameters(), lr=0.001)
         sz=self.trains[0].shape[0]
@@ -81,7 +81,7 @@ class XLAMultiTrainer:
                 loss = loss_module(out, lables)
                 loss.backward()
                 xm.optimizer_step(optimizer)
-                print(loss.item())
+                print(loss.cpu(),flush=True)
                 print(f'Training step {time.time()-st}')
                 st = time.time()
                 if(xm.is_master_ordinal()):
