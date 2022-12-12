@@ -54,25 +54,24 @@ class XLAMultiTrainer:
 
 
     def train_loop(self,inside_model, 
-            epochs=1,
+            epochs=5,
             batch_size=3):
         inside_model.train()
         device = xm.xla_device()
         train_ds = self.get_train_dataset(self.trains).prefetch(16)
         train_dl = DataLoader(train_ds, batch_size=4,shuffle=False, drop_last=True)
         loss_module = nn.MSELoss(reduction='mean')
-        optimizer = torch.optim.Adam(inside_model.parameters(), lr=0.001)
+        optimizer = torch.optim.Adam(inside_model.parameters(), lr=0.02)
         sz=self.trains[0].shape[0]
-        lossed = -1
         st = time.time()
         for ep in range(epochs):
+            lossed = -1
             inside_model.train()
             if xm.is_master_ordinal():
                 prog = tqdm(total=sz)
             for i, batch in enumerate(train_dl):
-                break
                 inputs, lables = batch
-                print(f'Loading step {time.time()-st}')
+                #print(f'Loading step {time.time()-st}')
                 st = time.time()
                 inputs = inputs.to(dtype=torch.float32,device=device)
                 lables = lables.to(dtype=torch.float32,device=device)
@@ -82,14 +81,14 @@ class XLAMultiTrainer:
                 loss = loss_module(out, lables)
                 loss.backward()
                 xm.optimizer_step(optimizer)
-                print(loss.cpu(),flush=True)
-                print(f'Training step {time.time()-st}')
+                #print(f'Training step {time.time()-st}')
                 st = time.time()
                 if(xm.is_master_ordinal()):
                     prog.update(inputs.shape[0])
-                #    lossed = loss.item() if lossed==-1 else lossed*0.9+loss.item()*0.1
-                    #prog.set_description(f'Running loss {loss}')
-                    #prog.refresh()
+                    lossed = loss.item() if lossed==-1 else lossed*0.9+loss.item()*0.1
+                    prog.set_description(f'Running loss {loss}')
+                    prog.refresh()
+                xm.mark_step()
             if(xm.is_master_ordinal()):
                 prog.close()
                 print(f'Epoch {ep} finished')
