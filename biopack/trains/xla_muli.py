@@ -47,7 +47,7 @@ class XLAMultiTrainer:
 
     def train_loop(self,inside_model, 
             split, 
-            epochs=2,
+            epochs=1,
             batch_size=3):
         inside_model.train()
         device = xm.xla_device()
@@ -57,11 +57,10 @@ class XLAMultiTrainer:
         optimizer = torch.optim.Adam(inside_model.parameters(), lr=0.02)
         sz=split.shape[0]
         for ep in range(epochs):
-            break
-            ct=0
             if xm.is_master_ordinal():
                 prog = tqdm(total=sz)
             for i, batch in enumerate(train_dl):
+                break
                 inputs, lables = batch
                 inputs = inputs.to(dtype=torch.float32,device=device)
                 lables = lables.to(dtype=torch.float32,device=device)
@@ -74,9 +73,7 @@ class XLAMultiTrainer:
                 xm.mark_step()
                 if(xm.is_master_ordinal()):
                     prog.update(inputs.shape[0])
-                if(ct>=3):
-                    break
-                ct+=1 
+                break
             if(xm.is_master_ordinal()):
                 prog.close()
                 print(f'Epoch {ep} finished')
