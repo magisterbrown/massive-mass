@@ -92,7 +92,7 @@ class XLAMultiTrainer:
             if(xm.is_master_ordinal()):
                 prog.close()
                 print(f'Epoch {ep} finished')
-            #self.validation_loop(inside_model)
+            self.validation_loop(inside_model)
         pass
     def validation_loop(self, model):
         loss_module = nn.MSELoss(reduction='none')
@@ -100,7 +100,7 @@ class XLAMultiTrainer:
         model.eval()
         sz = self.test_sus[0].shape[0]
         test_ds = self.get_train_dataset(self.test_sus)
-        test_dl = DataLoader(test_ds, batch_size=5, shuffle=False, drop_last=True)
+        test_dl = DataLoader(test_ds, batch_size=4, shuffle=False, drop_last=True)
         ct = 0 
         summs=0
         for i, batch in enumerate(test_dl):
@@ -113,12 +113,15 @@ class XLAMultiTrainer:
                 loss = self.rmse(loss_module(out, lables))
                 summs+=loss.item()
                 ct+=1
-            break
+
         fins = xm.rendezvous('finval', payload=struct.pack('f',summs/ct))
         if xm.is_master_ordinal():
-            fins = [struct.unpack('f', x) for x in fins]
-            res = np.mean(fins)
-            print(f'Final mse {res}')
+            if fins:
+                fins = [struct.unpack('f', x) for x in fins]
+                res = np.mean(fins)
+                print(f'Final rmse {res}')
+            else:
+                print(f'Final rmse {summs/ct}')
 
 
 
