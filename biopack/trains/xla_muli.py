@@ -58,7 +58,7 @@ class XLAMultiTrainer:
             batch_size=3):
         inside_model.train()
         device = xm.xla_device()
-        train_ds = self.get_train_dataset(self.trains).prefetch(16)
+        train_ds = self.get_train_dataset(self.trains).prefetch(16).shuffle(buffer_size=16)
         train_dl = DataLoader(train_ds, batch_size=4,shuffle=False, drop_last=True)
         loss_module = nn.MSELoss(reduction='mean')
         optimizer = torch.optim.Adam(inside_model.parameters(), lr=0.02)
@@ -100,7 +100,7 @@ class XLAMultiTrainer:
         model.eval()
         sz = self.test_sus[0].shape[0]
         test_ds = self.get_train_dataset(self.test_sus)
-        test_dl = DataLoader(test_ds, batch_size=4, shuffle=False, drop_last=True)
+        test_dl = DataLoader(test_ds, batch_size=8, shuffle=False, drop_last=True)
         ct = 0 
         summs=0
         for i, batch in enumerate(test_dl):
