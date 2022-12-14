@@ -16,8 +16,8 @@ import time
 from torchdata.datapipes.iter import IterableWrapper
 copy_process(72)
 
-train = np.load('data/tr_links.npy',allow_pickle=True)[:32]
-test = np.load('data/ts_links.npy',allow_pickle=True)[:16]
+train = np.load('data/tr_links.npy',allow_pickle=True)[:56]
+test = np.load('data/ts_links.npy',allow_pickle=True)[:14]
 from biopack.trains.xla_muli import XLAMultiTrainer
 trr = XLAMultiTrainer('data/res.pth',train, test, 1)
 print(trr)

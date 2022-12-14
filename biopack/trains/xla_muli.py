@@ -9,6 +9,7 @@ from torchdata.datapipes.iter import IterableWrapper
 from torch.utils.data import DataLoader
 from multiprocessing import Manager
 import torch_xla.utils.serialization as xser
+import torch.optim.lr_scheduler as lr_scheduler
 
 import numpy as np
 import time
@@ -54,16 +55,21 @@ class XLAMultiTrainer:
 
 
     def train_loop(self,inside_model, 
-            epochs=5,
-            batch_size=3):
+            epochs=2,
+            batch_size=4,
+            lr=0.02,
+            b1=0.9,
+            b2=0.999,
+            weight_decay=0.01,
+            slide=0.1):
         inside_model.train()
         device = xm.xla_device()
         train_ds = self.get_train_dataset(self.trains).prefetch(16).shuffle(buffer_size=16)
-        train_dl = DataLoader(train_ds, batch_size=4,shuffle=False, drop_last=True)
+        train_dl = DataLoader(train_ds, batch_size=batch_size,shuffle=False, drop_last=True)
         loss_module = nn.MSELoss(reduction='mean')
-        optimizer = torch.optim.Adam(inside_model.parameters(), lr=0.02)
+        optimizer = torch.optim.AdamW(inside_model.parameters(), lr=lr,betas=(b1,b2),weight_decay=weight_decay)
         sz=self.trains[0].shape[0]
-        st = time.time()
+        scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=int(sz/batch_size)*epochs, eta_min=lr*slide)
         for ep in range(epochs):
             lossed = -1
             inside_model.train()
@@ -71,8 +77,6 @@ class XLAMultiTrainer:
                 prog = tqdm(total=sz)
             for i, batch in enumerate(train_dl):
                 inputs, lables = batch
-                #print(f'Loading step {time.time()-st}')
-                st = time.time()
                 inputs = inputs.to(dtype=torch.float32,device=device)
                 lables = lables.to(dtype=torch.float32,device=device)
 
@@ -81,8 +85,7 @@ class XLAMultiTrainer:
                 loss = loss_module(out, lables)
                 loss.backward()
                 xm.optimizer_step(optimizer)
-                #print(f'Training step {time.time()-st}')
-                st = time.time()
+                scheduler.step()
                 if(xm.is_master_ordinal()):
                     prog.update(inputs.shape[0])
                     lossed = loss.item() if lossed==-1 else lossed*0.9+loss.item()*0.1
@@ -102,7 +105,7 @@ class XLAMultiTrainer:
         test_ds = self.get_train_dataset(self.test_sus)
         test_dl = DataLoader(test_ds, batch_size=8, shuffle=False, drop_last=True)
         ct = 0 
-        summs=0
+        summs = 0
         for i, batch in enumerate(test_dl):
             inputs, lables = batch
             inputs = inputs.to(dtype=torch.float32,device=device)
@@ -119,7 +122,7 @@ class XLAMultiTrainer:
             if fins:
                 fins = [struct.unpack('f', x) for x in fins]
                 res = np.mean(fins)
-                print(f'Final rmse {res}')
+                print(f'Final avg rmse {res}')
             else:
                 print(f'Final rmse {summs/ct}')
 
