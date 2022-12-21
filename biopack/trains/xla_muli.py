@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 from multiprocessing import Manager
 import torch_xla.utils.serialization as xser
 import torch.optim.lr_scheduler as lr_scheduler
+from multiprocessing import Value
 
 import numpy as np
 import time
@@ -17,7 +18,7 @@ from tqdm import tqdm
 import struct
 
 class XLAMultiTrainer:
-    def __init__(self, save_pth, train_sus, test_sus, procs):
+    def __init__(self, save_pth, trial, train_sus, test_sus, procs):
         self.save_pth = save_pth
         self.flags = dict()
         self.flags['seed'] = 420
@@ -25,7 +26,7 @@ class XLAMultiTrainer:
         self.trains = np.array_split(train_sus, procs)
         self.test_sus = np.array_split(test_sus, procs)
         self.inp_proc = InputS1Loader()
-        manager = Manager()
+        self.trial = trial
 
 
     def train(self, hyper_params=dict()):
@@ -34,10 +35,12 @@ class XLAMultiTrainer:
                     encoder_name="resnet34",        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
                     encoder_weights=None,     # use `imagenet` pre-trained weights for encoder initialization
                     in_channels=4,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
-                    classes=1,                      # model output channels (number of classes in your dataset)
-                                )
+                    classes=1)                      # model output channels (number of classes in your dataset)
+        self.res = Value('f', 100.0)                        
+        self.prune = Value('b', False)                        
         self.model=xmp.MpModelWrapper(model)
         xmp.spawn(self.mp_fn, args=(hyper_params,),  nprocs=self.procs, start_method='fork')
+        return self.res.value
 
     def mp_fn(self, index, hyper_params):
         torch.manual_seed(self.flags['seed'])
@@ -95,9 +98,9 @@ class XLAMultiTrainer:
             if(xm.is_master_ordinal()):
                 prog.close()
                 print(f'Epoch {ep} finished')
-            self.validation_loop(inside_model)
+            self.validation_loop(inside_model, ep)
         pass
-    def validation_loop(self, model):
+    def validation_loop(self, model, step):
         loss_module = nn.MSELoss(reduction='none')
         device = xm.xla_device()
         model.eval()
@@ -124,7 +127,12 @@ class XLAMultiTrainer:
                 res = np.mean(fins)
                 print(f'Final avg rmse {res}')
             else:
-                print(f'Final rmse {summs/ct}')
+                res = summs/ct
+                print(f'Final rmse {res}')
+
+            self.res.value=res
+            self.trial.report(res, step)
+            self.prune = trial.should_prune()
 
 
 

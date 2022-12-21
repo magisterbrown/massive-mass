@@ -15,32 +15,31 @@ from biopack.copy_env import copy_process
 import time
 from torchdata.datapipes.iter import IterableWrapper
 import optuna
-copy_process(6499)
+copy_process(3814)
 
+from biopack.trains.xla_muli import XLAMultiTrainer
 train = np.load('data/tr_links.npy',allow_pickle=True)[:56]
 test = np.load('data/ts_links.npy',allow_pickle=True)[:14]
 
 def objective(trial):
     params = {
-            'epochs':trial.suggest_int("epochs", 3, 10),
-            'batch_size':trial.suggest_int("bs", 4, 8),
+            'epochs':1,#trial.suggest_int("epochs", 3, 10),
+            'batch_size':8,#trial.suggest_int("bs", 4, 8),
             'lr':trial.suggest_float("lr", 1e-3, 0.1, log=True),
            'b1':trial.suggest_float("b1", 0.4, 0.999),
             'b2':trial.suggest_float("b2", 0.6, 0.9999),
             'weight_decay':trial.suggest_int("weight_decay", 0, 0.05),
             'slide':trial.suggest_float("slide", 1e-4, 1, log=True)
     }
-    return 3
+    trr = XLAMultiTrainer('data/res.pth', trial ,train, test, 1)
+    rest = trr.train(params)
+    return rest
 
 
-study = optuna.create_study(direction='minimize')
-study.optimize(objective, n_trials=5)
+study = optuna.create_study(direction='minimize', pruner=optuna.pruners.MedianPruner())
+study.optimize(objective, n_trials=2)
 
 
 
 
-#from biopack.trains.xla_muli import XLAMultiTrainer
-#trr = XLAMultiTrainer('data/res.pth',train, test, 1)
-#print(trr)
-#trr.train()
 
