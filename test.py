@@ -18,8 +18,8 @@ import optuna
 copy_process(339)
 
 from biopack.trains.xla_muli import XLAMultiTrainer
-train = np.load('data/tr_links.npy',allow_pickle=True)[:4*56]
-test = np.load('data/ts_links.npy',allow_pickle=True)[:4*14]
+train = np.load('data/tr_links.npy',allow_pickle=True)
+test = np.load('data/ts_links.npy',allow_pickle=True)
 
 def objective(trial):
     params = {
