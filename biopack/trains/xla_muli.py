@@ -101,7 +101,7 @@ class XLAMultiTrainer:
                     lossed = loss.item() if lossed==-1 else lossed*0.9+loss.item()*0.1
                     prog.set_description(f'Running loss {loss}')
                     prog.refresh()
-                #xm.mark_step()
+                xm.mark_step()
             if(xm.is_master_ordinal()):
                 prog.close()
                 print(f'Epoch {ep} finished')
@@ -112,15 +112,11 @@ class XLAMultiTrainer:
         device = xm.xla_device()
         model.eval()
         sz = self.test_sus[0].shape[0]
-        test_ds = self.get_train_dataset(self.test_sus)
-        test_dl = DataLoader(test_ds, batch_size=batch_size, shuffle=False, drop_last=False)
+        test_ds = self.get_train_dataset(self.test_sus).prefetch(8)
+        test_dl = DataLoader(test_ds, batch_size=4, shuffle=False, drop_last=False)
         ct = 0 
         summs = 0
-        st = time.time()
         for i, batch in enumerate(test_dl):
-            print(i)
-            print(st-time.time())
-            st = time.time()
             inputs, lables = batch
             inputs = inputs.to(dtype=torch.float32,device=device)
             lables = lables.to(dtype=torch.float32,device=device)
