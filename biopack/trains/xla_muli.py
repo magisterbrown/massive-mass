@@ -11,6 +11,7 @@ from multiprocessing import Manager
 import torch_xla.utils.serialization as xser
 import torch.optim.lr_scheduler as lr_scheduler
 from multiprocessing import Value
+import optuna
 
 import numpy as np
 import time
@@ -40,13 +41,18 @@ class XLAMultiTrainer:
         self.prune = Value('b', False)                        
         self.model=xmp.MpModelWrapper(model)
         xmp.spawn(self.mp_fn, args=(hyper_params,),  nprocs=self.procs, start_method='fork')
+        if self.prune.value:
+            raise optuna.TrialPruned()
         return self.res.value
 
     def mp_fn(self, index, hyper_params):
         torch.manual_seed(self.flags['seed'])
         device = xm.xla_device()
         inside_model = self.model.to(device)
-        self.train_loop(inside_model, **hyper_params)
+        try:
+            self.train_loop(inside_model, **hyper_params)
+        except optuna.exceptions.TrialPruned:
+            return 0
 
         if xm.is_master_ordinal():
             print('Train Done')
@@ -132,11 +138,10 @@ class XLAMultiTrainer:
 
             self.res.value=res
             self.trial.report(res, step)
-            self.prune = trial.should_prune()
-
-
-
-        pass
+            self.prune.value = self.trial.should_prune()
+        xm.rendezvous('prune')
+        if self.prune.value:
+            raise optuna.TrialPruned()
 
     @staticmethod
     def rmse(batch):

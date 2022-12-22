@@ -15,7 +15,7 @@ from biopack.copy_env import copy_process
 import time
 from torchdata.datapipes.iter import IterableWrapper
 import optuna
-copy_process(3814)
+copy_process(5719)
 
 from biopack.trains.xla_muli import XLAMultiTrainer
 train = np.load('data/tr_links.npy',allow_pickle=True)[:56]
@@ -23,7 +23,7 @@ test = np.load('data/ts_links.npy',allow_pickle=True)[:14]
 
 def objective(trial):
     params = {
-            'epochs':1,#trial.suggest_int("epochs", 3, 10),
+            'epochs':trial.suggest_int("epochs", 2, 5),
             'batch_size':8,#trial.suggest_int("bs", 4, 8),
             'lr':trial.suggest_float("lr", 1e-3, 0.1, log=True),
            'b1':trial.suggest_float("b1", 0.4, 0.999),
