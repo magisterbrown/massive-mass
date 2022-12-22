@@ -23,8 +23,8 @@ test = np.load('data/ts_links.npy',allow_pickle=True)
 
 def objective(trial):
     params = {
-            'epochs':trial.suggest_int("epochs", 2, 5),
-            'batch_size':4,#trial.suggest_int("bs", 4, 8),
+            'epochs':trial.suggest_int("epochs", 3, 20),
+            'batch_size':trial.suggest_int("bs", 4, 8),
             'lr':trial.suggest_float("lr", 1e-3, 0.1, log=True),
            'b1':trial.suggest_float("b1", 0.4, 0.999),
             'b2':trial.suggest_float("b2", 0.6, 0.9999),
@@ -36,8 +36,9 @@ def objective(trial):
     return rest
 
 
-study = optuna.create_study(direction='minimize', pruner=optuna.pruners.MedianPruner())
-study.optimize(objective, n_trials=2)
+storage = "postgresql://brownie:superbrownie@143.47.187.210:5432/optuna"
+study = optuna.create_study(study_name="big_go", storage=storage, load_if_exists=True, direction='minimize', pruner=optuna.pruners.MedianPruner())
+study.optimize(objective, n_trials=100)
 
 
 
