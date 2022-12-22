@@ -105,15 +105,15 @@ class XLAMultiTrainer:
             if(xm.is_master_ordinal()):
                 prog.close()
                 print(f'Epoch {ep} finished')
-            self.validation_loop(inside_model, ep)
+            self.validation_loop(inside_model, ep, batch_size)
         pass
-    def validation_loop(self, model, step):
+    def validation_loop(self, model, step, batch_size):
         loss_module = nn.MSELoss(reduction='none')
         device = xm.xla_device()
         model.eval()
         sz = self.test_sus[0].shape[0]
         test_ds = self.get_train_dataset(self.test_sus)
-        test_dl = DataLoader(test_ds, batch_size=4, shuffle=False, drop_last=True)
+        test_dl = DataLoader(test_ds, batch_size=batch_size, shuffle=False, drop_last=False)
         ct = 0 
         summs = 0
         for i, batch in enumerate(test_dl):
