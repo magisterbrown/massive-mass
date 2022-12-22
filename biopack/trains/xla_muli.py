@@ -86,6 +86,7 @@ class XLAMultiTrainer:
             if xm.is_master_ordinal():
                 prog = tqdm(total=sz)
             for i, batch in enumerate(train_dl):
+                print(i)
                 inputs, lables = batch
                 inputs = inputs.to(dtype=torch.float32,device=device)
                 lables = lables.to(dtype=torch.float32,device=device)
@@ -101,7 +102,7 @@ class XLAMultiTrainer:
                     lossed = loss.item() if lossed==-1 else lossed*0.9+loss.item()*0.1
                     prog.set_description(f'Running loss {loss}')
                     prog.refresh()
-                xm.mark_step()
+                #xm.mark_step()
             if(xm.is_master_ordinal()):
                 prog.close()
                 print(f'Epoch {ep} finished')
@@ -117,6 +118,7 @@ class XLAMultiTrainer:
         ct = 0 
         summs = 0
         for i, batch in enumerate(test_dl):
+            print(i)
             inputs, lables = batch
             inputs = inputs.to(dtype=torch.float32,device=device)
             lables = lables.to(dtype=torch.float32,device=device)
