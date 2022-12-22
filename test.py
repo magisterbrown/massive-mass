@@ -15,11 +15,11 @@ from biopack.copy_env import copy_process
 import time
 from torchdata.datapipes.iter import IterableWrapper
 import optuna
-copy_process(4052)
+copy_process(5478)
 
 from biopack.trains.xla_muli import XLAMultiTrainer
-train = np.load('data/tr_links.npy',allow_pickle=True)[:156]
-test = np.load('data/ts_links.npy',allow_pickle=True)[:64]
+train = np.load('data/tr_links.npy',allow_pickle=True)[:56]
+test = np.load('data/ts_links.npy',allow_pickle=True)[:14]
 
 def objective(trial):
     params = {
@@ -31,7 +31,7 @@ def objective(trial):
             'weight_decay':trial.suggest_int("weight_decay", 0, 0.05),
             'slide':trial.suggest_float("slide", 1e-4, 1, log=True)
     }
-    trr = XLAMultiTrainer('data/res.pth', trial ,train, test, 8)
+    trr = XLAMultiTrainer('data/res.pth', trial ,train, test, 1)
     rest = trr.train(params)
     return rest
 

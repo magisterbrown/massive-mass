@@ -86,7 +86,6 @@ class XLAMultiTrainer:
             if xm.is_master_ordinal():
                 prog = tqdm(total=sz)
             for i, batch in enumerate(train_dl):
-                print(i)
                 inputs, lables = batch
                 inputs = inputs.to(dtype=torch.float32,device=device)
                 lables = lables.to(dtype=torch.float32,device=device)
@@ -117,8 +116,11 @@ class XLAMultiTrainer:
         test_dl = DataLoader(test_ds, batch_size=batch_size, shuffle=False, drop_last=False)
         ct = 0 
         summs = 0
+        st = time.time()
         for i, batch in enumerate(test_dl):
             print(i)
+            print(st-time.time())
+            st = time.time()
             inputs, lables = batch
             inputs = inputs.to(dtype=torch.float32,device=device)
             lables = lables.to(dtype=torch.float32,device=device)
