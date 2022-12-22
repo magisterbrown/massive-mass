@@ -18,20 +18,20 @@ import optuna
 copy_process(5719)
 
 from biopack.trains.xla_muli import XLAMultiTrainer
-train = np.load('data/tr_links.npy',allow_pickle=True)[:56]
-test = np.load('data/ts_links.npy',allow_pickle=True)[:14]
+train = np.load('data/tr_links.npy',allow_pickle=True)[:156]
+test = np.load('data/ts_links.npy',allow_pickle=True)[:64]
 
 def objective(trial):
     params = {
             'epochs':trial.suggest_int("epochs", 2, 5),
-            'batch_size':8,#trial.suggest_int("bs", 4, 8),
+            'batch_size':4,#trial.suggest_int("bs", 4, 8),
             'lr':trial.suggest_float("lr", 1e-3, 0.1, log=True),
            'b1':trial.suggest_float("b1", 0.4, 0.999),
             'b2':trial.suggest_float("b2", 0.6, 0.9999),
             'weight_decay':trial.suggest_int("weight_decay", 0, 0.05),
             'slide':trial.suggest_float("slide", 1e-4, 1, log=True)
     }
-    trr = XLAMultiTrainer('data/res.pth', trial ,train, test, 1)
+    trr = XLAMultiTrainer('data/res.pth', trial ,train, test, 8)
     rest = trr.train(params)
     return rest
 
