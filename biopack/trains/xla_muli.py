@@ -135,6 +135,7 @@ class XLAMultiTrainer:
         if xm.is_master_ordinal():
             if fins:
                 fins = [struct.unpack('f', x) for x in fins]
+                print(fins)
                 res = np.mean(fins)
                 print(f'Final avg rmse {res}')
             else:
@@ -145,7 +146,6 @@ class XLAMultiTrainer:
             ntr = self.loaded_study._storage._backend.get_trial(self.trial_id)
             ntr.report(res, step)
             self.prune.value = ntr.should_prune()
-            self.prune.value = True
 
         xm.rendezvous('prune')
         time.sleep(1)
