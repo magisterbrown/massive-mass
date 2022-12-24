@@ -19,7 +19,7 @@ from tqdm import tqdm
 import struct
 
 class XLAMultiTrainer:
-    def __init__(self, save_pth, trial, train_sus, test_sus, procs):
+    def __init__(self, save_pth, trial_id, storage, name, train_sus, test_sus, procs):
         self.save_pth = save_pth
         self.flags = dict()
         self.flags['seed'] = 420
@@ -27,7 +27,10 @@ class XLAMultiTrainer:
         self.trains = np.array_split(train_sus, procs)
         self.test_sus = np.array_split(test_sus, procs)
         self.inp_proc = InputS1Loader()
-        self.trial = trial
+
+        self.trial_id = trial_id
+        self.storage = storage
+        self.name = name
 
     def train(self, hyper_params=dict()):
         torch.manual_seed(self.flags['seed'])
@@ -39,20 +42,19 @@ class XLAMultiTrainer:
         self.res = Value('f', 100.0)                        
         self.prune = Value('b', False)                        
         self.model=xmp.MpModelWrapper(model)
-        #for i in range(10):
-        #    self.trial.report(13, i)
-        xmp.spawn(self.mp_fn, args=(hyper_params, self.trial,),  nprocs=self.procs, start_method='fork')
+        xmp.spawn(self.mp_fn, args=(hyper_params, ),  nprocs=self.procs, start_method='fork')
         if self.prune.value:
             raise optuna.TrialPruned()
         return self.res.value
 
-    def mp_fn(self, index, hyper_params, trial):
+    def mp_fn(self, index, hyper_params):
         torch.manual_seed(self.flags['seed'])
         device = xm.xla_device()
         inside_model = self.model.to(device)
+        self.loaded_study = optuna.load_study(study_name=self.name, storage=self.storage)
         try:
             pass
-            self.train_loop(inside_model, trial, **hyper_params)
+            self.train_loop(inside_model,  **hyper_params)
         except optuna.exceptions.TrialPruned:
             return 0
 
@@ -65,7 +67,7 @@ class XLAMultiTrainer:
         time.sleep(1)
 
 
-    def train_loop(self,inside_model, trial, 
+    def train_loop(self,inside_model,  
             epochs=2,
             batch_size=4,
             lr=0.02,
@@ -107,9 +109,9 @@ class XLAMultiTrainer:
             if(xm.is_master_ordinal()):
                 prog.close()
                 print(f'Epoch {ep} finished')
-            self.validation_loop(inside_model, ep, batch_size, trial)
+            self.validation_loop(inside_model, ep, batch_size)
         pass
-    def validation_loop(self, model, step, batch_size, trial):
+    def validation_loop(self, model, step, batch_size):
         loss_module = nn.MSELoss(reduction='none')
         device = xm.xla_device()
         model.eval()
@@ -138,26 +140,17 @@ class XLAMultiTrainer:
             else:
                 res = summs/ct
                 print(f'Final rmse {res}')
-            if res>1000000:
-                res = 1000000
 
             self.res.value=res
-            #print(trial)
-            #print(step)
-            #print(res)
-            storage = "postgresql://brownie:superbrownie@143.47.187.210:5432/optuna"
-            loaded_study = optuna.load_study(study_name="big_go", storage=storage)
-            _trial_id = self.trial._trial_id
-            ntr = loaded_study._storage._backend.get_trial(_trial_id)
-            print(_trial_id)
-            print(ntr)
-            #_study = trial.study
-            #_trial = _study._storage._backend.get_trial(_trial_id)
+            ntr = self.loaded_study._storage._backend.get_trial(self.trial_id)
             ntr.report(res, step)
-        #    self.prune.value = self.trial.should_prune()
-        #xm.rendezvous('prune')
-        #if self.prune.value:
-        #    raise optuna.TrialPruned()
+            self.prune.value = ntr.should_prune()
+            self.prune.value = True
+
+        xm.rendezvous('prune')
+        time.sleep(1)
+        if self.prune.value:
+            raise optuna.TrialPruned()
 
     @staticmethod
     def rmse(batch):

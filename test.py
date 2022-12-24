@@ -15,35 +15,32 @@ from biopack.copy_env import copy_process
 import time
 from torchdata.datapipes.iter import IterableWrapper
 import optuna
-copy_process(527)
+copy_process(3004)
 
 from biopack.trains.xla_muli import XLAMultiTrainer
-train = np.load('data/tr_links.npy',allow_pickle=True)[:6*20]
-test = np.load('data/ts_links.npy',allow_pickle=True)[:4*10]
+train = np.load('data/tr_links.npy',allow_pickle=True)
+test = np.load('data/ts_links.npy',allow_pickle=True)
 
+storage = "postgresql://brownie:superbrownie@143.47.187.210:5432/optuna"
+name = "big_go_nightly"
 def objective(trial):
     params = {
-            'epochs':2,#trial.suggest_int("epochs", 3, 20),
-            'batch_size':4,#trial.suggest_int("bs", 4, 8),
+            'epochs':trial.suggest_int("epochs", 3, 20),
+            'batch_size':6,#trial.suggest_int("bs", 4, 8),
             'lr':trial.suggest_float("lr", 1e-3, 0.1, log=True),
             'b1':trial.suggest_float("b1", 0.4, 0.999),
             'b2':trial.suggest_float("b2", 0.6, 0.9999),
             'weight_decay':trial.suggest_int("weight_decay", 0, 0.05),
             'slide':trial.suggest_float("slide", 1e-4, 1, log=True)
     }
-    trr = XLAMultiTrainer('data/res.pth', trial ,train, test, 8)
-    #print(trial._trial_id)
+    trr = XLAMultiTrainer('data/res.pth', trial._trial_id, storage, name ,train, test, 8)
     rest = trr.train(params)
-    return 11
-    print(rest)
-    print(type(rest))
     return rest
 
 
-storage = "postgresql://brownie:superbrownie@143.47.187.210:5432/optuna"
-study = optuna.create_study(study_name="big_go", storage=storage, load_if_exists=True, direction='minimize', pruner=optuna.pruners.MedianPruner())
+study = optuna.create_study(study_name=name, storage=storage, load_if_exists=True, direction='minimize', pruner=optuna.pruners.MedianPruner())
 #study = optuna.create_study(load_if_exists=True, direction='minimize', pruner=optuna.pruners.MedianPruner())
-study.optimize(objective, n_trials=1)
+study.optimize(objective, n_trials=100)
 
 
 
