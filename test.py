@@ -25,7 +25,7 @@ storage = "postgresql://brownie:superbrownie@143.47.187.210:5432/optuna"
 name = "big_go_nightly_new"
 def objective(trial):
     params = {
-            'epochs':20,#trial.suggest_int("epochs", 3, 20),
+            'epochs':trial.suggest_int("epochs", 3, 20),
             'batch_size':6,#trial.suggest_int("bs", 4, 8),
             'lr':trial.suggest_float("lr", 1e-3, 0.1, log=True),
             'b1':trial.suggest_float("b1", 0.4, 0.999),
