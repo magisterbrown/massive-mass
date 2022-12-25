@@ -41,7 +41,7 @@ def objective(trial):
 
 study = optuna.create_study(study_name=name, storage=storage, load_if_exists=True, direction='minimize', pruner=optuna.pruners.MedianPruner())
 #study = optuna.create_study(load_if_exists=True, direction='minimize', pruner=optuna.pruners.MedianPruner())
-study.optimize(objective, n_trials=100)
+study.optimize(objective, n_trials=1)
 
 
 

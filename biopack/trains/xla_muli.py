@@ -160,6 +160,8 @@ class XLAMultiTrainer:
                 print(f'Final rmse {res}')
 
             self.prune.value = self.bst.update(step, res)
+            if res > 80:
+                self.prune.value=True
             self.res.value=self.bst.min_score
             self.res_step.value=self.bst.min_step
             #ntr = self.loaded_study._storage._backend.get_trial(self.trial_id)
