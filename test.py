@@ -15,7 +15,7 @@ from biopack.copy_env import copy_process
 import time
 from torchdata.datapipes.iter import IterableWrapper
 import optuna
-copy_process(4742)
+copy_process(1173)
 
 from biopack.trains.xla_muli import XLAMultiTrainer
 train = np.load('data/tr_links.npy',allow_pickle=True)
