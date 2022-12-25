@@ -15,17 +15,17 @@ from biopack.copy_env import copy_process
 import time
 from torchdata.datapipes.iter import IterableWrapper
 import optuna
-copy_process(3004)
+copy_process(4742)
 
 from biopack.trains.xla_muli import XLAMultiTrainer
-train = np.load('data/tr_links.npy',allow_pickle=True)
-test = np.load('data/ts_links.npy',allow_pickle=True)
+train = np.load('data/tr_links.npy',allow_pickle=True)[:3*40]
+test = np.load('data/ts_links.npy',allow_pickle=True)[:3*40]
 
 storage = "postgresql://brownie:superbrownie@143.47.187.210:5432/optuna"
 name = "big_go_nightly"
 def objective(trial):
     params = {
-            'epochs':trial.suggest_int("epochs", 3, 20),
+            'epochs':20,#trial.suggest_int("epochs", 3, 20),
             'batch_size':6,#trial.suggest_int("bs", 4, 8),
             'lr':trial.suggest_float("lr", 1e-3, 0.1, log=True),
             'b1':trial.suggest_float("b1", 0.4, 0.999),
@@ -34,7 +34,8 @@ def objective(trial):
             'slide':trial.suggest_float("slide", 1e-4, 1, log=True)
     }
     trr = XLAMultiTrainer('data/res.pth', trial._trial_id, storage, name ,train, test, 8)
-    rest = trr.train(params)
+    rest,step = trr.train(params)
+    trial.set_user_attr('steps', step)
     return rest
 
 

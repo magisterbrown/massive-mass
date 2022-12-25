@@ -18,6 +18,21 @@ import time
 from tqdm import tqdm
 import struct
 
+class BestScore:
+    def __init__(self):
+        self.min_step = 0
+        self.min_score = float('inf')
+        self.alpha = 0.1
+
+    def update(self, step, score):
+        if(score< self.min_score+self.alpha):
+            self.min_score = score
+            self.min_step = step
+        elif(step-self.min_step>3):
+            return True
+
+        return False
+
 class XLAMultiTrainer:
     def __init__(self, save_pth, trial_id, storage, name, train_sus, test_sus, procs):
         self.save_pth = save_pth
@@ -40,23 +55,25 @@ class XLAMultiTrainer:
                     in_channels=4,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
                     classes=1)                      # model output channels (number of classes in your dataset)
         self.res = Value('f', 100.0)                        
+        self.res_step = Value('i', 0)                        
         self.prune = Value('b', False)                        
         self.model=xmp.MpModelWrapper(model)
         xmp.spawn(self.mp_fn, args=(hyper_params, ),  nprocs=self.procs, start_method='fork')
-        if self.prune.value:
-            raise optuna.TrialPruned()
-        return self.res.value
+        #if self.prune.value:
+        #    raise optuna.TrialPruned()
+        return self.res.value, self.res_step.value
 
     def mp_fn(self, index, hyper_params):
         torch.manual_seed(self.flags['seed'])
         device = xm.xla_device()
         inside_model = self.model.to(device)
         self.loaded_study = optuna.load_study(study_name=self.name, storage=self.storage)
+        self.bst = BestScore()
         try:
             pass
             self.train_loop(inside_model,  **hyper_params)
         except optuna.exceptions.TrialPruned:
-            return 0
+            pass
 
         if xm.is_master_ordinal():
             print('Train Done')
@@ -142,10 +159,12 @@ class XLAMultiTrainer:
                 res = summs/ct
                 print(f'Final rmse {res}')
 
-            self.res.value=res
-            ntr = self.loaded_study._storage._backend.get_trial(self.trial_id)
-            ntr.report(res, step)
-            self.prune.value = ntr.should_prune()
+            self.prune.value = self.bst.update(step, res)
+            self.res.value=self.bst.min_score
+            self.res_step.value=self.bst.min_step
+            #ntr = self.loaded_study._storage._backend.get_trial(self.trial_id)
+            #ntr.report(res, step)
+            #self.prune.value = ntr.should_prune()
 
         xm.rendezvous('prune')
         time.sleep(1)
