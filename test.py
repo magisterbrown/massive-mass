@@ -18,11 +18,11 @@ import optuna
 copy_process(4742)
 
 from biopack.trains.xla_muli import XLAMultiTrainer
-train = np.load('data/tr_links.npy',allow_pickle=True)[:3*40]
-test = np.load('data/ts_links.npy',allow_pickle=True)[:3*40]
+train = np.load('data/tr_links.npy',allow_pickle=True)
+test = np.load('data/ts_links.npy',allow_pickle=True)
 
 storage = "postgresql://brownie:superbrownie@143.47.187.210:5432/optuna"
-name = "big_go_nightly"
+name = "big_go_nightly_new"
 def objective(trial):
     params = {
             'epochs':20,#trial.suggest_int("epochs", 3, 20),
@@ -41,7 +41,7 @@ def objective(trial):
 
 study = optuna.create_study(study_name=name, storage=storage, load_if_exists=True, direction='minimize', pruner=optuna.pruners.MedianPruner())
 #study = optuna.create_study(load_if_exists=True, direction='minimize', pruner=optuna.pruners.MedianPruner())
-study.optimize(objective, n_trials=1)
+study.optimize(objective, n_trials=100)
 
 
 
