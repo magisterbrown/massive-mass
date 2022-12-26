@@ -47,14 +47,17 @@ class XLAMultiTrainer:
         self.storage = storage
         self.name = name
 
-    def train(self, hyper_params=dict()):
-        torch.manual_seed(self.flags['seed'])
+    def init_model(self):
         model = smp.Unet(
                     encoder_name="resnet34",        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
                     encoder_weights=None,     # use `imagenet` pre-trained weights for encoder initialization
                     in_channels=4,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
                     classes=1)                      # model output channels (number of classes in your dataset)
-        self.res = Value('f', 100.0)                        
+        return model
+
+    def train(self, hyper_params=dict()):
+        torch.manual_seed(self.flags['seed'])
+        model = self.init_model()        self.res = Value('f', 100.0)                        
         self.res_step = Value('i', 0)                        
         self.prune = Value('b', False)                        
         self.model=xmp.MpModelWrapper(model)
@@ -161,6 +164,8 @@ class XLAMultiTrainer:
 
             self.prune.value = self.bst.update(step, res)
             if res > 80:
+                self.prune.value=True
+            if res != res:
                 self.prune.value=True
             self.res.value=self.bst.min_score
             self.res_step.value=self.bst.min_step
