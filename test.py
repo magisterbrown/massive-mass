@@ -15,14 +15,20 @@ from biopack.copy_env import copy_process
 import time
 from torchdata.datapipes.iter import IterableWrapper
 import optuna
-copy_process(1173)
+from biopack.models.effseg import EffUnet
+
+copy_process(6058)
 
 from biopack.trains.xla_muli import XLAMultiTrainer
-train = np.load('data/tr_links.npy',allow_pickle=True)
+train = np.load('data/tr_links.npy',allow_pickle=True)[:2500]
 test = np.load('data/ts_links.npy',allow_pickle=True)
+class UFmtr(XLAMultiTrainer):
+    def init_model(self):
+        model = EffUnet()
+        return model
 
 storage = "postgresql://brownie:superbrownie@143.47.187.210:5432/optuna"
-name = "big_go_nightly_new"
+name = "effv2_go_1"
 def objective(trial):
     params = {
             'epochs':trial.suggest_int("epochs", 3, 20),
@@ -33,7 +39,7 @@ def objective(trial):
             'weight_decay':trial.suggest_int("weight_decay", 0, 0.05),
             'slide':trial.suggest_float("slide", 1e-4, 1, log=True)
     }
-    trr = XLAMultiTrainer('data/res.pth', trial._trial_id, storage, name ,train, test, 8)
+    trr = UFmtr('data/res.pth', trial._trial_id, storage, name ,train, test, 8)
     rest,step = trr.train(params)
     trial.set_user_attr('steps', step)
     return rest

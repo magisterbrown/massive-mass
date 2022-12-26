@@ -57,7 +57,8 @@ class XLAMultiTrainer:
 
     def train(self, hyper_params=dict()):
         torch.manual_seed(self.flags['seed'])
-        model = self.init_model()        self.res = Value('f', 100.0)                        
+        model = self.init_model()        
+        self.res = Value('f', 100.0)                        
         self.res_step = Value('i', 0)                        
         self.prune = Value('b', False)                        
         self.model=xmp.MpModelWrapper(model)
