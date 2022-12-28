@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch
 
 class SkipEffnetV2(nn.Module):
-    def __init__(self):
+    def __init__(self, ):
         super().__init__()
         effnet = efficientnet_v2_s()
         effnet.features[0] = Conv2dNormActivation(4, 24, kernel_size=3, stride=2, norm_layer=nn.BatchNorm2d, activation_layer=nn.SiLU)
@@ -36,7 +36,7 @@ class SkipEffnetV2(nn.Module):
 
 class EffUnet(SegmentationModel):
 
-    def __init__(self):
+    def __init__(self, activat=nn.LeakyReLU):
         super().__init__()
         self.encoder = SkipEffnetV2()
         decoder_channels = (256, 128, 64, 32, 16)
@@ -52,7 +52,7 @@ class EffUnet(SegmentationModel):
         self.segmentation_head = SegmentationHead(
             in_channels=decoder_channels[-1],
             out_channels=1,
-            activation=nn.ReLU,
+            activation=activat,
             kernel_size=3,
         )
 
